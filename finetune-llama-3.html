@@ -1,0 +1,151 @@
+<!DOCTYPE html SYSTEM "about:legacy-compat">
+<html lang="en-US" data-preset="contrast" data-primary-color="#307FFF"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="UTF-8"><meta name="robots" content="noindex"><meta name="built-on" content="2024-04-22T11:03:06.013021"><title>Llama-3 8b-bnb 4bit fine-tuning in Japanese | Evolany Tech Team</title><script type="application/json" id="virtual-toc-data">[{"id":"pre-requisites","level":0,"title":"Pre-requisites","anchor":"#pre-requisites"}]</script><script type="application/json" id="topic-shortcuts"></script><link href="https://resources.jetbrains.com/writerside/apidoc/6.6.6-b224/app.css" rel="stylesheet"><link rel="icon" type="image/svg" sizes="16x16" href="images/evolany-logo-svg.svg"><meta name="image" content=""><!-- Open Graph --><meta property="og:title" content="Llama-3 8b-bnb 4bit fine-tuning in Japanese | Evolany Tech Team"><meta property="og:description" content=""><meta property="og:image" content=""><meta property="og:site_name" content="Evolany Tech Team Help"><meta property="og:type" content="website"><meta property="og:locale" content="en_US"><meta property="og:url" content="writerside-documentation/finetune-llama-3.html"><!-- End Open Graph --><!-- Twitter Card --><meta name="twitter:card" content="summary_large_image"><meta name="twitter:site" content=""><meta name="twitter:title" content="Llama-3 8b-bnb 4bit fine-tuning in Japanese | Evolany Tech Team"><meta name="twitter:description" content=""><meta name="twitter:creator" content=""><meta name="twitter:image:src" content=""><!-- End Twitter Card --><!-- Schema.org WebPage --><script type="application/ld+json">{
+    "@context": "http://schema.org",
+    "@type": "WebPage",
+    "@id": "writerside-documentation/finetune-llama-3.html#webpage",
+    "url": "writerside-documentation/finetune-llama-3.html",
+    "name": "Llama-3 8b-bnb 4bit fine-tuning in Japanese | Evolany Tech Team",
+    "description": "",
+    "image": "",
+    "inLanguage":"en-US"
+}</script><!-- End Schema.org --><!-- Schema.org WebSite --><script type="application/ld+json">{
+    "@type": "WebSite",
+    "@id": "writerside-documentation/#website",
+    "url": "writerside-documentation/",
+    "name": "Evolany Tech Team Help"
+}</script><!-- End Schema.org --></head><body data-id="finetune-llama-3" data-main-title="Llama-3 8b-bnb 4bit fine-tuning in Japanese" data-article-props="{&quot;seeAlsoStyle&quot;:&quot;links&quot;}" data-template="article" data-breadcrumbs="Artificial-Intelligence.md|Machine Learning Progress"><div class="wrapper"><main class="panel _main"><header class="panel__header"><div class="container"><h3>Evolany Tech Team  Help</h3><div class="panel-trigger"></div></div></header><section class="panel__content"><div class="container"><article class="article" data-shortcut-switcher="inactive"><h1 data-toc="finetune-llama-3" id="finetune-llama-3.md">Llama-3 8b-bnb 4bit fine-tuning in Japanese</h1><p id="l38lqc_298">This is a guide provided by Evolany team, a short introduction on how to fine-tune the SOTA llama-3 model in Japanese.</p><section class="chapter"><h2 id="pre-requisites" data-toc="pre-requisites">Pre-requisites</h2><p id="l38lqc_299">The most GPU-efficient and fastest method to fine-tune llama-3 <span class="emphasis" id="l38lqc_300">(as of 2024 Apr)</span> is through the <span class="control" id="l38lqc_301">unsloth</span> method. This method is based on llama-3, where they have pre-quantized to 4bit, reducing the memory required for fine-tuning.</p><p id="l38lqc_302">The advantage of this method is that there is no need to retrain the model, just download the pre-trained 4bit model and then fine-tune it.</p><p id="l38lqc_303">The disadvantage of this method is that due to the quantization to 4bit, the accuracy of the model will decrease. However, since the accuracy of llama-3 itself is very high, this decrease is acceptable.</p><section class="chapter"><h3 id="install-dependencies" data-toc="install-dependencies">Install dependencies</h3><div class="code-block" data-lang="bash">
+pip install &quot;unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git&quot;
+pip install torch transformers
+pip install --no-deps packaging ninja einops flash-attn xformers trl peft accelerate bitsandbytes
+</div><p id="l38lqc_305">Many machines do not support <code class="code" id="l38lqc_306">flash-attn</code> yet, so you can directly comment out the <code class="code" id="l38lqc_307">packaging ninja einops flash-attn</code> libraries, which does not affect the use.</p><p id="l38lqc_308">Most likely, a GPU is needed to run. If there is no GPU, you can use Colab, but the GPU of Colab may be restricted, so there may be an OOM situation.</p><p id="l38lqc_309">Below is the code snippet to fine-tune the llama-3 model, with a <a href="https://huggingface.co/datasets/izumi-lab/llm-japanese-dataset" id="l38lqc_310" data-external="true" rel="noopener noreferrer">sample Japanese dataset</a>.</p><div class="code-block" data-lang="python">
+# More models at https://huggingface.co/unsloth
+import torch
+from unsloth import FastLanguageModel
+
+max_seq_length = 2048  # 任意のウィンドウ長をカスタマイズでき、RoPEエンコーディングによりモデルウィンドウサイズが自動的にスケーリングされました。
+dtype = None  # Noneに設定すると自動的に取得します。現在、Float16はGPUタイプTesla T4、V100をサポートしています。Bfloat16はGPUタイプAmpere+をサポートしています。
+load_in_4bit = True  # メモリ使用を削減するために4ビット量子化を使用します。Falseに設定することも可能です。
+
+# unsloth で事前に量子化された4ビットモデルを呼び出す
+model, tokenizer = FastLanguageModel.from_pretrained(
+    model_name=&quot;unsloth/llama-3-8b-bnb-4bit&quot;,
+    max_seq_length=max_seq_length,
+    dtype=dtype,
+    load_in_4bit=load_in_4bit,  # 以4bit加载模型
+)
+
+# 以下はPEFTモデルのデフォルトパラメーターです。必要に応じて調整できます。
+model = FastLanguageModel.get_peft_model(
+    model,
+    r=16,  # Choose any number &gt; 0 ! Suggested 8, 16, 32, 64, 128
+    target_modules=[&quot;q_proj&quot;, &quot;k_proj&quot;, &quot;v_proj&quot;, &quot;o_proj&quot;,
+                    &quot;gate_proj&quot;, &quot;up_proj&quot;, &quot;down_proj&quot;, ],
+    lora_alpha=16,
+    lora_dropout=0,  # Supports any, but = 0 is optimized
+    bias=&quot;none&quot;,  # Supports any, but = &quot;none&quot; is optimized
+    # [NEW] &quot;unsloth&quot; uses 30% less VRAM, fits 2x larger batch sizes!
+    use_gradient_checkpointing=&quot;unsloth&quot;,  # True or &quot;unsloth&quot; for very long context
+    random_state=3407,
+    use_rslora=False,  # We support rank stabilized LoRA
+    loftq_config=None,  # And LoftQ
+)
+
+alpaca_prompt = &quot;&quot;&quot;Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+
+### Instruction:
+{}
+
+### Input:
+{}
+
+### Response:
+{}&quot;&quot;&quot;
+
+EOS_TOKEN = tokenizer.eos_token  # EOS_TOKENという特殊な記号を追加しなければなりません。そうしないと生成が無限ループになります。
+
+
+def formatting_prompts_func(examples):
+    instructions = examples[&quot;instruction_zh&quot;]
+    inputs = examples[&quot;input_zh&quot;]
+    outputs = examples[&quot;output_zh&quot;]
+    texts = []
+    for instruction, input, output in zip(instructions, inputs, outputs):
+        text = alpaca_prompt.format(instruction, input, output) + EOS_TOKEN  # EOS_TOKENという特殊な記号を追加しなければなりません。そうしないと生成が無限ループになります。
+        texts.append(text)
+    return {&quot;text&quot;: texts, }
+
+
+# データセットからデータをロードする
+from datasets import load_dataset
+
+# このデータセットを使用して実験が可能です：
+# https://huggingface.co/datasets/izumi-lab/llm-japanese-dataset
+dataset = load_dataset(&quot;izumi-lab/llm-japanese-dataset&quot;, split=&quot;train&quot;)
+dataset = dataset.map(formatting_prompts_func, batched=True, )
+
+# 以下はPEFTモデルのデフォルトパラメーターです。必要に応じて調整できます。
+from trl import SFTTrainer
+from transformers import TrainingArguments
+
+trainer = SFTTrainer(
+    model=model,
+    tokenizer=tokenizer,
+    train_dataset=dataset,
+    dataset_text_field=&quot;text&quot;,
+    max_seq_length=max_seq_length,
+    dataset_num_proc=2,
+    packing=False,  # 小さなコンテキストウィンドウを使用することで、トレーニング速度を5倍以上に向上させることができます。
+    args=TrainingArguments(
+        per_device_train_batch_size=2,
+        gradient_accumulation_steps=4,
+        warmup_steps=5,
+        max_steps=500,  # チューニングの反復回数
+        learning_rate=2e-4,
+        fp16=not torch.cuda.is_bf16_supported(),
+        bf16=torch.cuda.is_bf16_supported(),
+        logging_steps=1,
+        optim=&quot;adamw_8bit&quot;,
+        weight_decay=0.01,
+        lr_scheduler_type=&quot;linear&quot;,
+        seed=1337,
+        output_dir=&quot;outputs&quot;,
+    ),
+)
+
+# モデルをトレーニングする
+trainer_stats = trainer.train()
+
+# トレーニング完了後、いくつかの統計情報を印刷します。
+used_memory = round(torch.cuda.max_memory_reserved() / 1024 / 1024 / 1024, 3)
+used_memory_for_lora = round(used_memory - start_gpu_memory, 3)
+used_percentage = round(used_memory / max_memory * 100, 3)
+lora_percentage = round(used_memory_for_lora / max_memory * 100, 3)
+print(f&quot;{trainer_stats.metrics['train_runtime']} seconds used for training.&quot;)
+print(f&quot;{round(trainer_stats.metrics['train_runtime'] / 60, 2)} minutes used for training.&quot;)
+print(f&quot;Peak reserved memory = {used_memory} GB.&quot;)
+print(f&quot;Peak reserved memory for training = {used_memory_for_lora} GB.&quot;)
+print(f&quot;Peak reserved memory % of max memory = {used_percentage} %.&quot;)
+print(f&quot;Peak reserved memory for training % of max memory = {lora_percentage} %.&quot;)
+
+# alpaca_prompt = Copied from above
+FastLanguageModel.for_inference(model)  # ネイティブで2倍速い推論を有効にする
+inputs = tokenizer(
+    [
+        alpaca_prompt.format(
+            &quot;あなたは非常に正確な人工知能アシスタントで、質問に対して簡潔に答え、日本語で回答します。&quot;,  # instruction
+            &quot;植物はどのようにして呼吸するのですか？&quot;,  # input
+            &quot;&quot;,  # output - leave this blank for generation!
+        )
+    ], return_tensors=&quot;pt&quot;).to(&quot;cuda&quot;)
+
+
+# Streamを使用してテキストを生成する
+from transformers import TextStreamer
+
+text_streamer = TextStreamer(tokenizer)
+_ = model.generate(**inputs, streamer=text_streamer, max_new_tokens=128)
+
+# 微調整後のモデルを保存する
+model.save_pretrained(&quot;llama-3-zh_lora&quot;)  
+
+</div></section></section><div class="last-modified">Last modified: 22 April 2024</div><div data-feedback-placeholder="true"></div><div class="navigation-links _bottom"><a href="artificial-intelligence.html" class="navigation-links__prev">Machine Learning Progress</a><a href="intro-to-llms.html" class="navigation-links__next">Intro to LLMs</a></div></article><div id="disqus_thread"></div></div></section></main></div><script src="https://resources.jetbrains.com/writerside/apidoc/6.6.6-b224/app.js"></script></body></html>
