@@ -65,9 +65,9 @@ EOS_TOKEN = tokenizer.eos_token  # EOS_TOKENという特殊な記号を追加し
 
 
 def formatting_prompts_func(examples):
-    instructions = examples[&quot;instruction_zh&quot;]
-    inputs = examples[&quot;input_zh&quot;]
-    outputs = examples[&quot;output_zh&quot;]
+    instructions = examples[&quot;instruction&quot;]
+    inputs = examples[&quot;input&quot;]
+    outputs = examples[&quot;output&quot;]
     texts = []
     for instruction, input, output in zip(instructions, inputs, outputs):
         text = alpaca_prompt.format(instruction, input, output) + EOS_TOKEN  # EOS_TOKENという特殊な記号を追加しなければなりません。そうしないと生成が無限ループになります。
@@ -146,6 +146,6 @@ text_streamer = TextStreamer(tokenizer)
 _ = model.generate(**inputs, streamer=text_streamer, max_new_tokens=128)
 
 # 微調整後のモデルを保存する
-model.save_pretrained(&quot;llama-3-zh_lora&quot;)  
+model.save_pretrained(&quot;llama-3-jp_lora&quot;)  
 
 </div></section></section><div class="last-modified">Last modified: 22 April 2024</div><div data-feedback-placeholder="true"></div><div class="navigation-links _bottom"><a href="artificial-intelligence.html" class="navigation-links__prev">Machine Learning Progress</a><a href="intro-to-llms.html" class="navigation-links__next">Intro to LLMs</a></div></article><div id="disqus_thread"></div></div></section></main></div><script src="https://resources.jetbrains.com/writerside/apidoc/6.6.6-b224/app.js"></script></body></html>
